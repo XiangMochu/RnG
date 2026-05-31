@@ -17,8 +17,9 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
+from einops import rearrange
 
-XFORMERS_AVAILABLE = True
+XFORMERS_AVAILABLE = False
 from xformers.ops import memory_efficient_attention, unbind
 
 
@@ -114,13 +115,13 @@ class Attention_with_kv_cache(Attention):
         
         if self.mask_attention is None:
             self.kv_cache = {
-                'k': k,
-                'v': v}
+                'k': k.to(torch.bfloat16),
+                'v': v.to(torch.bfloat16)}
         else:
             self.kv_cache = {
-                'k': k[:, :, :-self.mask_attention, :],
-                'v': v[:, :, :-self.mask_attention, :]}
-        print('cached kv', self.kv_cache['k'].shape, self.kv_cache['v'].shape)
+                'k': k[:, :, :-self.mask_attention, :].to(torch.bfloat16),
+                'v': v[:, :, :-self.mask_attention, :].to(torch.bfloat16)}
+        # print('cached kv', self.kv_cache['k'].shape, self.kv_cache['v'].shape)
 
         if self.fused_attn:
             if self.mask_attention is not None:
@@ -152,8 +153,8 @@ class Attention_with_kv_cache(Attention):
         q, k = self.q_norm(q), self.k_norm(k)
 
         if self.rope is not None:
-            q = self.rope(q, pos)
-            k = self.rope(k, pos)
+            q = self.rope(q, pos).to(torch.bfloat16)
+            k = self.rope(k, pos).to(torch.bfloat16)
 
         assert q.shape[2] == self.mask_attention, 'only pass target view tokens when using kv_cache'
 
@@ -161,8 +162,21 @@ class Attention_with_kv_cache(Attention):
         k = torch.cat([self.kv_cache['k'], k], 2)
         v = torch.cat([self.kv_cache['v'], v], 2)
 
-        x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop.p if self.training else 0.0)
-        x = x.transpose(1, 2).reshape(B, N, C)
+
+        if XFORMERS_AVAILABLE:
+            q = rearrange(q, 'b h n c -> b n h c')
+            k = rearrange(k, 'b h n c -> b n h c')
+            v = rearrange(v, 'b h n c -> b n h c')
+            x = memory_efficient_attention(q, k, v)
+            # print(x.shape) # [1, 1029, 16, 64]
+            x = rearrange(x, 'b n h c -> b n (h c)')
+        else:
+            x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop.p if self.training else 0.0)
+            # print(x.shape) # [b, h, n, c]
+            x = x.transpose(1, 2).reshape(B, N, C)
+            # print(x.shape) # [b, n, (h c)]
+
+        
         x = self.proj(x)
         x = self.proj_drop(x)
         return x

@@ -22,10 +22,13 @@ bg_img = repeat(bg_img, 'n -> n 128 3')
 white_bg = repeat(np.array([255]*3, dtype=np.uint8), 'n -> 1 1 n')
 
 color_by_id = [
-    (38, 70, 83),
-    (42, 157, 143),
-    (244, 162, 97),
-    (193, 56, 22)
+    ( 38,  70,  83),
+    ( 42, 157, 143),
+    (244, 162,  97),
+    (193,  56,  22),
+    ( 42, 157,  97),
+    (244, 162,  22),
+    (193,  56, 143),
 ]
 
 fixed_location = np.stack([
@@ -100,15 +103,34 @@ class Viewer:
         self.dataset = dataset
         self.model = model
 
-        self.server = viser.ViserServer()
+        self.server = viser.ViserServer(label='RnG Demo')
         self.server.scene.set_up_direction('-y')
-        # self.server.scene.set_background_image(bg_img)
         self._init_ui()
         self.update_render_position()
         self.draw_frame()
 
     def _init_ui(self):
         self.current_batch_id = 0
+        self.num_input_view   = 4
+
+        self.help_button = self.server.gui.add_button("click to display helper", color=(140, 200, 140))
+        @self.help_button.on_click
+        def _(event):
+            event.client.add_notification("Use IJKL",
+                "to move the camera around ",
+                auto_close_seconds=10)
+
+            event.client.add_notification("Use UO",
+                "to move the camera nearer or further ",
+                auto_close_seconds=12)
+
+            event.client.add_notification("Use ↑↓←→",
+                "to move your viewpoint",
+                auto_close_seconds=14)
+
+            event.client.add_notification("Use [  ]",
+                "to navigate to the next item ",
+                auto_close_seconds=16)
 
         with self.server.gui.add_folder('Object'):
             self.slider = self.server.gui.add_slider(
@@ -119,13 +141,21 @@ class Viewer:
                 self.current_batch_id = int(self.slider.value)
                 self.draw_frame()
 
-            self.next_botton = self.server.gui.add_button(label='  Next ->')
+            # self.num_view_slider = self.server.gui.add_slider(
+            #     label='# input', min=2, max=6, 
+            #     step=1, initial_value=4)
+            # @self.num_view_slider.on_update
+            # def _(_):
+            #     self.num_input_view = int(self.num_view_slider.value)
+            #     self.draw_frame()
+
+            self.next_botton = self.server.gui.add_button(label='  Next ->', hint="Press ]")
             @self.next_botton.on_click
             def _(_):
                 self.current_batch_id = (self.current_batch_id + 1) % len(self.dataset)
                 self.slider.value = self.current_batch_id
 
-            self.prev_botton = self.server.gui.add_button(label='<- Prev  ')
+            self.prev_botton = self.server.gui.add_button(label='<- Prev  ', hint="Press [")
             @self.prev_botton.on_click
             def _(_):
                 self.current_batch_id = (self.current_batch_id - 1) % len(self.dataset)
@@ -135,21 +165,21 @@ class Viewer:
 
         with self.server.gui.add_folder('Camera Control'):
             self.azimuth_slider = self.server.gui.add_slider(
-                label='Azimuth', min=-180, max=180, step=10, initial_value=0)
+                label='Azimuth (J/L)', min=-180, max=180, step=10, initial_value=0)
             @self.azimuth_slider.on_update
             def _(_):
                 self.update_render_position()
                 self.render_frame()
             
             self.elevation_slider = self.server.gui.add_slider(
-                label='Elevation', min=-90, max=90, step=5, initial_value=0)
+                label='Elevation (I/K)', min=-90, max=90, step=5, initial_value=0)
             @self.elevation_slider.on_update
             def _(_):
                 self.update_render_position()
                 self.render_frame()
 
             self.radius_slider = self.server.gui.add_slider(
-                label='Radius', min=0.75, max=1.5, step=0.05, initial_value=1)
+                label='Radius (U/O)', min=0.75, max=1.5, step=0.05, initial_value=1)
             @self.radius_slider.on_update
             def _(_):
                 self.update_render_position()
@@ -211,7 +241,106 @@ class Viewer:
 
             fig = px.imshow(np.ones((256, 256, 3))*256)
             self.figure = self.server.gui.add_plotly(figure=fig, aspect=1.0)
-                
+
+        ### command
+        self.i_command = self.server.gui.add_command(
+            "I",
+            description="Move the camera up",
+            hotkey="i",
+            icon=viser.Icon.REFRESH)
+        
+        self.j_command = self.server.gui.add_command(
+            "J",
+            description="Move the camera left",
+            hotkey="j",
+            icon=viser.Icon.REFRESH)
+        
+        self.k_command = self.server.gui.add_command(
+            "k",
+            description="Move the object down",
+            hotkey="k",
+            icon=viser.Icon.REFRESH)
+
+        self.l_command = self.server.gui.add_command(
+            "L",
+            description="Move the object right",
+            hotkey="l",
+            icon=viser.Icon.REFRESH)
+        
+        self.u_command = self.server.gui.add_command(
+            "U",
+            description="Move the camera closer",
+            hotkey="u",
+            icon=viser.Icon.REFRESH)
+        
+        self.o_command = self.server.gui.add_command(
+            "O",
+            description="Move the camera away",
+            hotkey="o",
+            icon=viser.Icon.REFRESH)
+        
+        self.prev_command = self.server.gui.add_command(
+            "[",
+            description="Choose the previous item",
+            hotkey="[",
+            icon=viser.Icon.REFRESH)
+        
+        self.next_command = self.server.gui.add_command(
+            "]",
+            description="Choose the next item",
+            hotkey="]",
+            icon=viser.Icon.REFRESH)
+        
+        self.r_command = self.server.gui.add_command(
+            "R",
+            description="Reser viewpoint",
+            hotkey="r",
+            icon=viser.Icon.REFRESH)
+  
+        @self.i_command.on_trigger
+        def _(_):
+            self.elevation_slider.value = min(self.elevation_slider.value+5, 90)
+        
+        @self.k_command.on_trigger
+        def _(_):
+            self.elevation_slider.value = max(self.elevation_slider.value-5, -90)
+
+        @self.j_command.on_trigger
+        def _(_):
+            azimuth_slider_value = self.azimuth_slider.value - 10
+            if azimuth_slider_value < -180:
+                azimuth_slider_value += 360
+            self.azimuth_slider.value = azimuth_slider_value
+        
+        @self.l_command.on_trigger
+        def _(_):
+            azimuth_slider_value = self.azimuth_slider.value + 10
+            if azimuth_slider_value > 180:
+                azimuth_slider_value -= 360
+            self.azimuth_slider.value = azimuth_slider_value
+        
+        @self.u_command.on_trigger
+        def _(_):
+            self.radius_slider.value = max(self.radius_slider.value-0.05, 0.75)
+        
+        @self.o_command.on_trigger
+        def _(_):
+            self.radius_slider.value = min(self.radius_slider.value+0.05, 1.5)
+
+        @self.prev_command.on_trigger
+        def _(_):
+            self.current_batch_id = (self.current_batch_id - 1) % len(self.dataset)
+            self.slider.value = self.current_batch_id
+        
+        @self.next_command.on_trigger
+        def _(_):
+            self.current_batch_id = (self.current_batch_id + 1) % len(self.dataset)
+            self.slider.value = self.current_batch_id
+    
+        @self.r_command.on_trigger
+        def _(event: viser.CommandEvent):
+            event.client.camera.look_at = (0., 0., 0.)
+
     @staticmethod
     def get_camera_pose(azimuth, elevation, radius=1):
         x = np.sin(azimuth) * np.cos(elevation)
@@ -252,7 +381,7 @@ class Viewer:
         return mask.astype(bool)
     
     def empty_canvas(self):
-        removing_names = ['recon', 'tsdf_mesh', 'accum_pc', 'accum_cam', 'gen/pcd'] \
+        removing_names = ['recon', 'tsdf_mesh', 'accum_pc', 'accum_cam', 'gen/pcd', 'source_views'] \
             + [f'source_views/cam_{i}' for i in range(4)]
         for i in removing_names:
             self.server.scene.remove_by_name(i)
@@ -265,7 +394,7 @@ class Viewer:
         self.empty_canvas()
         batch = self.dataset[self.current_batch_id]
 
-        img_paths = batch['image_path'][:4]
+        img_paths = batch['image_path'][:self.num_input_view]
         self.input_mkdown.content = self.encode_img_path_to_mkdown(img_paths)
 
         with torch.no_grad(), torch.autocast(
@@ -274,7 +403,8 @@ class Viewer:
             dtype=amp_dtype_mapping[config.training.amp_dtype]
         ):
             batch = self.dataset[self.current_batch_id]
-            batch = {k: v.cuda()[:4].unsqueeze(0) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+            batch = {k: v.cuda()[:self.num_input_view].unsqueeze(0) 
+                     if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             pose_enc = self.model.forward_pose_only(batch['image'])
         
             pred_ext, intrinsic = pose_encoding_to_extri_intri(pose_enc, (256,256))
@@ -295,7 +425,7 @@ class Viewer:
 
         self.current_batch_c2w = c2w
 
-        num_input_imgs = 4
+        num_input_imgs = self.num_input_view
         self.pts_color_iv = []
         self.pts_iv = []
         for idx in range(num_input_imgs):

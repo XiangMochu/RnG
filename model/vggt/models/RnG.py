@@ -46,7 +46,7 @@ class RnG(nn.Module):
         self.process_data = data_utils.ProcessData(config)
         self.process_val_data = data_utils.ProcessData(config.training.val_dataset_cfgs)
         self.make_modifications()
-        self.loss_computer = MultiTaskLossComputer(config)
+        # self.loss_computer = MultiTaskLossComputer(config)
 
     def make_modifications(self):
         if self.kwargs.get('is_debugging', False) == False:
@@ -315,7 +315,8 @@ class RnG(nn.Module):
 
         target_views_tokens_list = aggregated_tokens_list
 
-        with torch.cuda.amp.autocast(enabled=False):
+        # with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast(enabled=False, device_type='cuda'):
             rendered_images, conf = self.rgb_head(
                 target_views_tokens_list, images=target_pose_cond, patch_start_idx=patch_start_idx)
             rendered_images = rearrange(rendered_images, 'b v h w c -> b v c h w')

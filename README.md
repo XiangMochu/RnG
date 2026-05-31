@@ -2,7 +2,7 @@
 
 # RnG: A Unified Transformer for Complete 3D Modeling from Partial Observations
 
-### CVPR 2026
+### CVPR 2026 Highlight
 
 <h6>
 <a href="https://scholar.google.com/citations?user=OC5oCTgAAAAJ" target="_blank">Mochu Xiang</a><sup>1,2 ‡</sup>,

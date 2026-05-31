@@ -11,7 +11,7 @@ model:
     patch_size: 8
     in_channels: 6  # 3 direction + 3 Reference
 
-  pretrained_path: experiments/pretrained/vggt_model.pt
+  # pretrained_path: experiments/pretrained/vggt_model.pt
 
 exp_name:
   RnGUP_obj_Med_b6v3a2Bf16_40K
@@ -79,7 +79,7 @@ training:
   val_dataset_name: data.dataset_gso.GSODataset
   validation_out_dir: ./experiments/checkpoints/${exp_name}
   val_dataset_cfgs:
-    root_dir: /workspace/ssd1/gso_render_rv
+    root_dir: /home/mochu/gso_render_rv
     suffix: render_mvs_25/model/
     split_file: data/gso_subset64.txt
     if_inference: True
