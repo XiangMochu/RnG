@@ -32,8 +32,6 @@
 </div>
 
 
-🚧 *We are currently organizing our training code* 🚧
-
 <img src="https://npucvr.github.io/RnG/imgs/RnG_architecture.png" width="97%"/>
 
 </div>
